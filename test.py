@@ -32,10 +32,6 @@ tracktor = {
     "desription": None,
     "seed": 12345,
     "network": "fpn",
-    "obj_detect_model": "output/faster_rcnn_fpn_training_mot_17/model_epoch_27.model",
-    # "obj_detect_model": "output/frcnn/res101/mot_2017_train/180k/res101_faster_rcnn_iter_180000.pth",
-    "reid_weights": "output/tracktor/reid/res50-mot17-batch_hard/ResNet_iter_25245.pth",
-    "reid_config": "output/tracktor/reid/res50-mot17-batch_hard/sacred_config.yaml",
     "interpolate": False,
     "write_images": False,
     "dataset": "mot17_train_FRCNN17",
@@ -89,6 +85,10 @@ def parse_args():
     )
     parser.add_argument(
         '--detection-path',
+        required=True
+    )
+    parser.add_argument(
+        '--reid-path',
         required=True
     )
     parser.add_argument(
@@ -167,7 +167,7 @@ def main():
     LOG.info("Initializing object detector.")
 
     obj_detect = FRCNN_FPN(num_classes=2)
-    obj_detect_state_dict = torch.load(tracktor['obj_detect_model'], map_location=device)
+    obj_detect_state_dict = torch.load(args.detection_path, map_location=device)
     obj_detect.load_state_dict(obj_detect_state_dict)
 
     obj_detect.eval()
@@ -181,7 +181,7 @@ def main():
     # reid
     LOG.info("Initializing reidentification network.")
     reid_network = resnet50(pretrained=False, output_dim=128)
-    reid_network.load_state_dict(torch.load(tracktor['reid_weights'], map_location=device))
+    reid_network.load_state_dict(torch.load(args.reid_path, map_location=device))
     reid_network.eval()
     if is_cuda:
         reid_network.cuda()
