@@ -10,7 +10,6 @@ from torchvision.transforms import ToTensor
 mm.lap.default_solver = 'lap'
 
 import cv2
-from ml_serving.drivers import driver
 import numpy as np
 import torch
 from torchvision.transforms import functional as F
@@ -102,13 +101,6 @@ def parse_args():
     )
 
     return parser.parse_args()
-
-
-def load_object_detection_driver(path):
-    drv = driver.load_driver('tensorflow')
-    serving = drv()
-    serving.load_model(path)
-    return serving
 
 
 def draw_boxes(frame, frame_id, results):

@@ -1,6 +1,5 @@
 from collections import deque
 
-from ml_serving.drivers import driver
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -80,14 +79,7 @@ class Tracker:
         pos = self.get_pos()
 
         # regress
-        if isinstance(self.obj_detect, driver.ServingDriver):
-            img = blob['img'].numpy().transpose([0, 2, 3, 1])
-            boxes, scores = get_boxes(self.obj_detect, img, only_class=1)
-            boxes, scores = torch.Tensor(boxes), torch.Tensor(scores)
-            if self.use_gpu:
-                boxes, scores = boxes.cuda(), scores.cuda()
-        else:
-            boxes, scores = self.obj_detect.predict_boxes(blob['img'], pos)
+        boxes, scores = self.obj_detect.predict_boxes(blob['img'], pos)
 
         pos = clip_boxes_to_image(boxes, blob['img'].shape[-2:])
 
@@ -310,15 +302,8 @@ class Tracker:
                 else:
                     boxes = scores = torch.zeros(0)
         else:
-            if isinstance(self.obj_detect, driver.ServingDriver):
-                img = blob['img'].numpy().transpose([0, 2, 3, 1])
-                boxes, scores = get_boxes(self.obj_detect, img, only_class=1)
-                boxes, scores = torch.Tensor(boxes), torch.Tensor(scores)
-                if self.use_gpu:
-                    boxes, scores = boxes.cuda(), scores.cuda()
-            else:
-                boxes, scores = self.obj_detect.detect(blob['img'])
-                self.last_boxes = boxes
+            boxes, scores = self.obj_detect.detect(blob['img'])
+            self.last_boxes = boxes
 
         if frame is not None:
             for box in boxes:
@@ -490,30 +475,3 @@ class Track(object):
     def reset_last_pos(self):
         self.last_pos.clear()
         self.last_pos.append(self.pos.clone())
-
-
-def get_boxes(drv: driver.ServingDriver, frame: np.ndarray,
-              threshold: float = 0.5, offset=(0, 0), only_class=None):
-    input_name, input_shape = list(drv.inputs.items())[0]
-    # inference_frame = np.expand_dims(frame, axis=0)
-    outputs = drv.predict({input_name: frame})
-    boxes = outputs["detection_boxes"].copy().reshape([-1, 4])
-    scores = outputs["detection_scores"].copy().reshape([-1])
-    scores = scores[np.where(scores > threshold)]
-    boxes = boxes[:len(scores)]
-    if only_class is not None:
-        classes = np.int32((outputs["detection_classes"].copy())).reshape([-1])
-        classes = classes[:len(scores)]
-        boxes = boxes[classes == only_class]
-        scores = scores[classes == only_class]
-    boxes[:, 0] *= frame.shape[0] + offset[0]
-    boxes[:, 2] *= frame.shape[0] + offset[0]
-    boxes[:, 1] *= frame.shape[1] + offset[1]
-    boxes[:, 3] *= frame.shape[1] + offset[1]
-    boxes[:, [0, 1, 2, 3]] = boxes[:, [1, 0, 3, 2]]  # .astype(int)
-
-    # add probabilities
-    # confidence = np.expand_dims(scores, axis=0).transpose()
-    # boxes = np.concatenate((boxes, confidence), axis=1)
-
-    return boxes, scores
