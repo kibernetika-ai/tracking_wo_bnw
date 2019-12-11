@@ -226,7 +226,8 @@ def main():
             if frame_count * tracktor['frame_split'][0] <= frame_id <= frame_count * tracktor['frame_split'][1]:
                 rgb_frame = frame[:, :, ::-1]
 
-                torch_frame = F.to_tensor(rgb_frame.copy()).expand([1, *rgb_frame.shape])
+                torch_frame = F.to_tensor(rgb_frame.copy())
+                torch_frame = torch_frame.expand([1, *torch_frame.shape])
                 if is_cuda:
                     torch_frame = torch_frame.cuda()
 
