@@ -28,11 +28,11 @@ model_urls = {
 class ResNet(models.ResNet):
     def __init__(self, block, layers, output_dim):
         super(ResNet, self).__init__(block, layers)
-        
+
         self.name = "ResNet"
         self.use_gpu = torch.cuda.is_available()
 
-        self.avgpool = nn.AvgPool2d((8,4), stride=1)
+        self.avgpool = nn.AvgPool2d((8, 4), stride=1)
         self.fc = nn.Linear(512 * block.expansion, 1024)
         self.bn_fc = nn.BatchNorm1d(1024)
         self.relu_fc = nn.ReLU(inplace=True)
@@ -69,7 +69,7 @@ class ResNet(models.ResNet):
         """Tests the rois on a particular image. Should be inside image."""
         x = self.build_crops(image, rois)
         x = Variable(x)
-        
+
         return self.forward(x)
 
     def compare(self, e0, e1, train=False):
@@ -81,7 +81,7 @@ class ResNet(models.ResNet):
 
     def build_crops(self, image, rois):
         res = []
-        trans = Compose([ToPILImage(), Resize((256,128)), ToTensor()])
+        trans = Compose([ToPILImage(), Resize((256, 128)), ToTensor()])
         for r in rois:
             x0 = int(r[0])
             y0 = int(r[1])
@@ -97,8 +97,8 @@ class ResNet(models.ResNet):
                     y0 -= 1
                 else:
                     y1 += 1
-            im = image[0,:,y0:y1,x0:x1]
-            im = trans(im)
+            im = image[0, :, y0:y1, x0:x1]
+            im = trans(im.cpu())
             res.append(im)
         res = torch.stack(res, 0)
         if self.use_gpu:
@@ -131,7 +131,7 @@ class ResNet(models.ResNet):
             labels = labels
 
         embeddings = self.forward(inp)
-        
+
         if loss == "cross_entropy":
             m = _get_triplet_mask(labels).nonzero()
             e0 = []
@@ -141,24 +141,24 @@ class ResNet(models.ResNet):
                 e0.append(embeddings[p[0]])
                 e1.append(embeddings[p[1]])
                 e2.append(embeddings[p[2]])
-            e0 = torch.stack(e0,0)
-            e1 = torch.stack(e1,0)
-            e2 = torch.stack(e2,0)
+            e0 = torch.stack(e0, 0)
+            e1 = torch.stack(e1, 0)
+            e2 = torch.stack(e2, 0)
 
             out_pos = self.compare(e0, e1, train=True)
             out_neg = self.compare(e0, e2, train=True)
 
             if self.use_gpu:
-                tar_pos = Variable(torch.ones(out_pos.size(0)).view(-1,1).cuda())
-                tar_neg = Variable(torch.zeros(out_pos.size(0)).view(-1,1).cuda())
+                tar_pos = Variable(torch.ones(out_pos.size(0)).view(-1, 1).cuda())
+                tar_neg = Variable(torch.zeros(out_pos.size(0)).view(-1, 1).cuda())
             else:
-                tar_pos = Variable(torch.ones(out_pos.size(0)).view(-1,1))
-                tar_neg = Variable(torch.zeros(out_pos.size(0)).view(-1,1))
+                tar_pos = Variable(torch.ones(out_pos.size(0)).view(-1, 1))
+                tar_neg = Variable(torch.zeros(out_pos.size(0)).view(-1, 1))
 
             loss_pos = F.binary_cross_entropy_with_logits(out_pos, tar_pos)
             loss_neg = F.binary_cross_entropy_with_logits(out_neg, tar_neg)
 
-            total_loss = (loss_pos + loss_neg)/2
+            total_loss = (loss_pos + loss_neg) / 2
 
         elif loss == 'batch_all':
             # works, batch all strategy
@@ -170,9 +170,9 @@ class ResNet(models.ResNet):
                 e0.append(embeddings[p[0]])
                 e1.append(embeddings[p[1]])
                 e2.append(embeddings[p[2]])
-            e0 = torch.stack(e0,0)
-            e1 = torch.stack(e1,0)
-            e2 = torch.stack(e2,0)
+            e0 = torch.stack(e0, 0)
+            e1 = torch.stack(e1, 0)
+            e2 = torch.stack(e2, 0)
             total_loss = F.triplet_margin_loss(e0, e1, e2, margin=margin, p=2)
         elif loss == 'batch_hard':
             # compute pariwise square distance matrix, not stable with sqr as 0 can happen
@@ -196,8 +196,8 @@ class ResNet(models.ResNet):
             # for each anchor compute hardest pair
             triplets = []
             for i in range(dist.size(0)):
-                pos = torch.max(pos_dist[i],0)[1][0]
-                neg = torch.min(neg_dist[i],0)[1][0]
+                pos = torch.max(pos_dist[i], 0)[1][0]
+                neg = torch.min(neg_dist[i], 0)[1][0]
                 triplets.append((i, pos, neg))
 
             e0 = []
@@ -207,9 +207,9 @@ class ResNet(models.ResNet):
                 e0.append(embeddings[p[0]])
                 e1.append(embeddings[p[1]])
                 e2.append(embeddings[p[2]])
-            e0 = torch.stack(e0,0)
-            e1 = torch.stack(e1,0)
-            e2 = torch.stack(e2,0)
+            e0 = torch.stack(e0, 0)
+            e1 = torch.stack(e1, 0)
+            e2 = torch.stack(e2, 0)
             total_loss = F.triplet_margin_loss(e0, e1, e2, margin=margin, p=2)
 
         elif loss == 'weighted_triplet':
@@ -217,7 +217,7 @@ class ResNet(models.ResNet):
             dist = []
             # iteratively construct the columns
             for e in embeddings:
-                ee = torch.cat([e.view(1,-1) for _ in range(embeddings.size(0))],0)
+                ee = torch.cat([e.view(1, -1) for _ in range(embeddings.size(0))], 0)
                 dist.append(F.pairwise_distance(embeddings, ee))
             dist = torch.cat(dist, 1)
 
@@ -250,7 +250,8 @@ class ResNet(models.ResNet):
             pos_weight_dist = pos_dist * pos_weights
             neg_weight_dist = neg_dist * neg_weights
 
-            triplet_loss = torch.clamp(margin + pos_weight_dist.sum(1, keepdim=True) - neg_weight_dist.sum(1, keepdim=True), min=0)
+            triplet_loss = torch.clamp(
+                margin + pos_weight_dist.sum(1, keepdim=True) - neg_weight_dist.sum(1, keepdim=True), min=0)
             total_loss = triplet_loss.mean()
         else:
             raise NotImplementedError("Loss: {}".format(loss))
@@ -272,10 +273,10 @@ class ResNet(models.ResNet):
             num_hit = 0
             num_ges = 0
             for i in range(dist.size(0)):
-                d = mask_anchor_positive[i].nonzero().view(-1,1)
-                ind = indices[i][:prec_at_k+1]
+                d = mask_anchor_positive[i].nonzero().view(-1, 1)
+                ind = indices[i][:prec_at_k + 1]
 
-                same = d==ind
+                same = d == ind
                 num_hit += same.sum()
                 num_ges += prec_at_k
             k_loss = torch.Tensor(1)
@@ -285,14 +286,14 @@ class ResNet(models.ResNet):
             else:
                 losses['prec_at_k'] = Variable(k_loss)
 
-
         losses['total_loss'] = total_loss
 
         return losses
 
     def load_pretrained_dict(self, state_dict):
         """Load the pretrained weights and ignore the ones where size does not match"""
-        pretrained_state_dict = {k: v for k,v in state_dict.items() for kk,vv in self.state_dict().items() if k==kk and v.size() == vv.size()}
+        pretrained_state_dict = {k: v for k, v in state_dict.items() for kk, vv in self.state_dict().items() if
+                                 k == kk and v.size() == vv.size()}
         updated_state_dict = self.state_dict()
         updated_state_dict.update(pretrained_state_dict)
         self.load_state_dict(updated_state_dict)
