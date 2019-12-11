@@ -24,11 +24,13 @@ model_urls = {
     'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
 
+
 class ResNet(models.ResNet):
     def __init__(self, block, layers, output_dim):
         super(ResNet, self).__init__(block, layers)
         
         self.name = "ResNet"
+        self.use_gpu = torch.cuda.is_available()
 
         self.avgpool = nn.AvgPool2d((8,4), stride=1)
         self.fc = nn.Linear(512 * block.expansion, 1024)
@@ -99,7 +101,8 @@ class ResNet(models.ResNet):
             im = trans(im)
             res.append(im)
         res = torch.stack(res, 0)
-        res = res.cuda()
+        if self.use_gpu:
+            res = res.cuda()
         return res
 
     def sum_losses(self, batch, loss, margin, prec_at_k):
@@ -116,10 +119,16 @@ class ResNet(models.ResNet):
         """
 
         inp = batch[0][0]
-        inp = Variable(inp).cuda()
+        if self.use_gpu:
+            inp = Variable(inp).cuda()
+        else:
+            inp = Variable(inp)
 
         labels = batch[1][0]
-        labels = labels.cuda()
+        if self.use_gpu:
+            labels = labels.cuda()
+        else:
+            labels = labels
 
         embeddings = self.forward(inp)
         
@@ -139,8 +148,12 @@ class ResNet(models.ResNet):
             out_pos = self.compare(e0, e1, train=True)
             out_neg = self.compare(e0, e2, train=True)
 
-            tar_pos = Variable(torch.ones(out_pos.size(0)).view(-1,1).cuda())
-            tar_neg = Variable(torch.zeros(out_pos.size(0)).view(-1,1).cuda())
+            if self.use_gpu:
+                tar_pos = Variable(torch.ones(out_pos.size(0)).view(-1,1).cuda())
+                tar_neg = Variable(torch.zeros(out_pos.size(0)).view(-1,1).cuda())
+            else:
+                tar_pos = Variable(torch.ones(out_pos.size(0)).view(-1,1))
+                tar_neg = Variable(torch.zeros(out_pos.size(0)).view(-1,1))
 
             loss_pos = F.binary_cross_entropy_with_logits(out_pos, tar_pos)
             loss_neg = F.binary_cross_entropy_with_logits(out_neg, tar_neg)
@@ -217,11 +230,18 @@ class ResNet(models.ResNet):
             neg_dist = dist * Variable(mask_anchor_negative.float())
 
             # now get the weights for each anchor, detach because it should be a constant weighting factor
-            pos_weights = Variable(torch.zeros(dist.size()).cuda())
-            neg_weights = Variable(torch.zeros(dist.size()).cuda())
+            if self.use_gpu:
+                pos_weights = Variable(torch.zeros(dist.size()).cuda())
+                neg_weights = Variable(torch.zeros(dist.size()).cuda())
+            else:
+                pos_weights = Variable(torch.zeros(dist.size()))
+                neg_weights = Variable(torch.zeros(dist.size()))
             for i in range(dist.size(0)):
                 # make by line
-                mask = torch.zeros(dist.size()).byte().cuda()
+                if self.use_gpu:
+                    mask = torch.zeros(dist.size()).byte().cuda()
+                else:
+                    mask = torch.zeros(dist.size()).byte()
                 mask[i] = 1
                 pos_weights[mask_anchor_positive & mask] = F.softmax(pos_dist[mask_anchor_positive & mask], 0)
                 neg_weights[mask_anchor_negative & mask] = F.softmin(neg_dist[mask_anchor_negative & mask], 0)
@@ -260,7 +280,10 @@ class ResNet(models.ResNet):
                 num_ges += prec_at_k
             k_loss = torch.Tensor(1)
             k_loss[0] = num_hit / num_ges
-            losses['prec_at_k'] = Variable(k_loss.cuda())
+            if self.use_gpu:
+                losses['prec_at_k'] = Variable(k_loss.cuda())
+            else:
+                losses['prec_at_k'] = Variable(k_loss)
 
 
         losses['total_loss'] = total_loss
