@@ -73,7 +73,7 @@ def get_spaced_colors(n):
     return [(int(i[:2], 16), int(i[2:4], 16), int(i[4:], 16)) for i in colors]
 
 
-colors = get_spaced_colors(100)
+colors = get_spaced_colors(500)
 
 
 def parse_args():
