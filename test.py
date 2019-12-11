@@ -202,6 +202,7 @@ def main():
     LOG.info(f"Tracking: {args.source}")
     frame_id = 0
     frame_num = 0
+    results = {}
     try:
         while True:
             frame_num += 1
