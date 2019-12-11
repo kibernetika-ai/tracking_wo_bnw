@@ -307,7 +307,7 @@ class Tracker:
 
         if frame is not None:
             for box in boxes:
-                bx = box.numpy().astype(int)
+                bx = box.cpu().numpy().astype(int)
                 cv2.rectangle(
                     frame,
                     (bx[0] + 4, bx[1] + 4),
