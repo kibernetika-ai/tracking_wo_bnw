@@ -136,6 +136,10 @@ def main():
     logging.root.setLevel(logging.INFO)
 
     is_cuda = torch.cuda.is_available()
+    if is_cuda:
+        LOG.info('-' * 50)
+        LOG.info('Enabling CUDA')
+        LOG.info('-' * 50)
     device = torch.device('cuda' if is_cuda else 'cpu')
     # sacred.commands.print_config(_run)
 
