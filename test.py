@@ -73,7 +73,7 @@ def get_spaced_colors(n):
     return [(int(i[:2], 16), int(i[2:4], 16), int(i[4:], 16)) for i in colors]
 
 
-colors = get_spaced_colors(500)
+colors = get_spaced_colors(100)
 
 
 def parse_args():
@@ -115,6 +115,8 @@ def draw_boxes(frame, frame_id, results):
     #   ...
     # }
     # results = utils.interpolate(results)
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    size = 1.2
     for track_id, track in results.items():
         if frame_id in track:
             box = np.array(track[frame_id]).astype(int)
@@ -122,10 +124,27 @@ def draw_boxes(frame, frame_id, results):
                 frame,
                 (box[0], box[1]),
                 (box[2], box[3]),
-                colors[track_id],
+                colors[track_id % len(colors)][::-1],
                 thickness=3,
                 lineType=cv2.LINE_AA,
             )
+            cv2.putText(
+                frame,
+                str(track_id),
+                (box[0] + 10, box[1] + 40),
+                font, size, (0, 0, 0),
+                thickness=4,
+                lineType=cv2.LINE_AA,
+            )
+            cv2.putText(
+                frame,
+                str(track_id),
+                (box[0] + 10, box[1] + 40),
+                font, size, (50, 50, 255),
+                thickness=2,
+                lineType=cv2.LINE_AA,
+            )
+
     return frame
 
 
