@@ -216,7 +216,7 @@ def main():
 
     frame_count = vc.get(cv2.CAP_PROP_FRAME_COUNT)
     video_output = args.output
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
     width = int(vc.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(vc.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = vc.get(cv2.CAP_PROP_FPS)
